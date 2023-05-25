@@ -5,9 +5,10 @@ use std::path::Path;
 use std::rc::Rc;
 use std::{thread, time::Duration};
 
-use deno_core::{op, Extension, JsRuntime, OpState, ZeroCopyBuf};
+use deno_core::{op, serde_v8, v8, Extension, JsRuntime, OpState, ZeroCopyBuf};
 use serde::de::DeserializeOwned;
 
+use crate::exposed_func::{ExposedFunction, ExposedObject};
 use crate::{AnyError, CallArgs, JsError, JsValue};
 
 pub trait JsApi<'a> {
@@ -43,6 +44,19 @@ impl Script {
 				.to_string() + js_code;
 
 		Self::create_script(all_code)
+	}
+
+	pub fn rd_get_run_time() -> Result<Self, JsError> {
+		Self::rd_create_run_time()
+	}
+
+	pub fn rd_run_string(&mut self, js_code: &str) -> Result<v8::Global<v8::Value>, JsError> {
+		// console.log() is not available by default -- add the most basic version with single argument (and no warn/info/... variants)
+		let all_code =
+			"const console = { log: function(expr) { Deno.core.print(expr + '\\n', false); } };"
+				.to_string() + js_code;
+
+		self.rd_run_script(all_code)
 	}
 
 	/// Initialize a script by loading it from a .js file.
@@ -163,25 +177,92 @@ impl Script {
 		Ok(extracted.json_value)
 	}
 
+	fn rd_create_run_time() -> Result<Self, JsError> {
+		let ext = Extension::builder("script")
+			.ops(vec![(op_return::decl())])
+			.build();
+
+		let isolate = JsRuntime::new(deno_core::RuntimeOptions {
+			module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+			extensions: vec![ext],
+			..Default::default()
+		});
+
+		Ok(Script {
+			runtime: isolate,
+			last_rid: 0,
+			timeout: None,
+		})
+	}
+
+	fn rd_run_script(&mut self, js_code: String) -> Result<v8::Global<v8::Value>, JsError> {
+		let value: v8::Global<v8::Value> = self.runtime
+			.execute_script(Self::DEFAULT_FILENAME, js_code)?;
+
+		Ok(value)
+	}
+
 	fn create_script(js_code: String) -> Result<Self, JsError> {
 		let ext = Extension::builder("script")
 			.ops(vec![(op_return::decl())])
 			.build();
 
-		let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
+		let mut isolate = JsRuntime::new(deno_core::RuntimeOptions {
 			module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
 			extensions: vec![ext],
 			..Default::default()
 		});
 
 		// We cannot provide a dynamic filename because execute_script() requires a &'static str
-		runtime.execute_script(Self::DEFAULT_FILENAME, js_code)?;
+		isolate.execute_script(Self::DEFAULT_FILENAME, js_code)?;
 
 		Ok(Script {
-			runtime,
+			runtime: isolate,
 			last_rid: 0,
 			timeout: None,
 		})
+	}
+
+	// pub fn add_exposed_object(&mut self, obj:ExposedObject)
+	// {
+	// 	let mut scope = self.runtime.handle_scope();
+	// 	let context = scope.get_current_context();
+	// 	let global = context.global(&mut scope);
+	// 	let scope = &mut v8::ContextScope::new(&mut scope, context);
+
+	// 	let my_func_key = v8::String::new(scope, &obj.name).unwrap();
+	// 	println!("my_func_key is ${:?}", my_func_key);
+
+	// 	let my_func_templ = v8::FunctionTemplate::new(
+	// 		scope,
+	// 		|scope: &mut v8::HandleScope,
+	// 		 args: v8::FunctionCallbackArguments,
+	// 		 rv: v8::ReturnValue| { obj.call(scope, args, rv) },
+	// 	);
+	// 	let my_func_val = my_func_templ.get_function(scope).unwrap();
+	// 	global.set(scope, my_func_key.into(), my_func_val.into());
+	// }
+
+	pub fn add_exposed_func<A>(&mut self)
+	where
+		A: ExposedFunction,
+	{
+		let mut scope = self.runtime.handle_scope();
+		let context = scope.get_current_context();
+		let global = context.global(&mut scope);
+		let scope = &mut v8::ContextScope::new(&mut scope, context);
+
+		let my_func_key = v8::String::new(scope, A::name().as_str()).unwrap();
+		println!("my_func_key is ${:?}", my_func_key);
+
+		let my_func_templ = v8::FunctionTemplate::new(
+			scope,
+			|scope: &mut v8::HandleScope,
+			 args: v8::FunctionCallbackArguments,
+			 rv: v8::ReturnValue| { A::rust_func_for_js(scope, args, rv) },
+		);
+		let my_func_val = my_func_templ.get_function(scope).unwrap();
+		global.set(scope, my_func_key.into(), my_func_val.into());
 	}
 }
 

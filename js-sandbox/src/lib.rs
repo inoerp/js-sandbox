@@ -177,3 +177,4 @@ mod call_args;
 mod js_error;
 mod script;
 mod util;
+pub mod exposed_func;

@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2023 js-sandbox contributors. Zlib license.
 
-use crate::{JsError, JsValue, Script};
+use crate::{exposed_func::{ExposedFunction, DefaultExposedFunction}, JsError, JsValue, Script};
 
 /// Evaluates a standalone Javascript expression, and returns the result as a JSON value.
 ///

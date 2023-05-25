@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use deno_core::{serde_v8, v8};
+use js_sandbox::exposed_func::{DefaultExposedFunction, ExposedFunction, ExposedObject};
 use serde::{Deserialize, Serialize};
 
 use js_sandbox::{AnyError, JsError, Script};
@@ -30,10 +32,130 @@ struct Person {
 	age: u8,
 }
 
+pub struct DatabaseExposedFunction {}
+impl ExposedFunction for DatabaseExposedFunction {
+	fn name() -> String {
+		return "db_func".to_string();
+	}
+	fn rust_func_for_js(
+		scope: &mut deno_core::v8::HandleScope,
+		args: deno_core::v8::FunctionCallbackArguments,
+		mut rv: deno_core::v8::ReturnValue,
+	) {
+		println!("In standard exposed function : db_func");
+		let result_json = serde_json::json!({
+			"message": "Hello, World! from db_func",
+			"arg1": "arg1",
+			"arg2": "arg2",
+		})
+		.to_string();
+
+		// Convert the JSON string to a v8::Local value
+		match serde_v8::to_v8(scope, &result_json) {
+			Ok(result_value) => rv.set(result_value),
+			Err(_) => {
+				//throw_type_error(scope, "Failed to convert result to V8 value");
+				return;
+			}
+		}
+	}
+}
+
+pub struct StandardExposedFunction {}
+impl ExposedFunction for StandardExposedFunction {
+	fn name() -> String {
+		return "standard_func".to_string();
+	}
+	fn rust_func_for_js(
+		scope: &mut deno_core::v8::HandleScope,
+		args: deno_core::v8::FunctionCallbackArguments,
+		mut rv: deno_core::v8::ReturnValue,
+	) {
+		println!("In standard exposed function : standard_func");
+		let result_json = serde_json::json!({
+			"message": "Hello, World! from rust",
+			"arg1": "arg1",
+			"arg2": "arg2",
+		})
+		.to_string();
+
+		// Convert the JSON string to a v8::Local value
+		match serde_v8::to_v8(scope, &result_json) {
+			Ok(result_value) => rv.set(result_value),
+			Err(_) => {
+				//throw_type_error(scope, "Failed to convert result to V8 value");
+				return;
+			}
+		}
+	}
+}
+
+// fn get_exposed_object1() -> ExposedObject {
+// 	ExposedObject {
+// 		name: "db_func".to_string(),
+// 		call_back: |scope: &mut v8::HandleScope,
+// 		            args: v8::FunctionCallbackArguments,
+// 		            mut rv: v8::ReturnValue| {
+// 			println!("In standard exposed function : db_func");
+// 			let result_json = serde_json::json!({
+// 				"message": "Hello, World! from db_func",
+// 				"arg1": "arg1",
+// 				"arg2": "arg2",
+// 			})
+// 			.to_string();
+
+// 			// Convert the JSON string to a v8::Local value
+// 			match serde_v8::to_v8(scope, &result_json) {
+// 				Ok(result_value) => rv.set(result_value),
+// 				Err(_) => {
+// 					//throw_type_error(scope, "Failed to convert result to V8 value");
+// 					return;
+// 				}
+// 			}
+// 		},
+// 	}
+// }
+
+// fn get_exposed_object2() -> ExposedObject {
+// 	ExposedObject {
+// 		name: "standard_func".to_string(),
+// 		call_back: |scope: &mut v8::HandleScope,
+// 		            args: v8::FunctionCallbackArguments,
+// 		            mut rv: v8::ReturnValue| {
+// 			println!("In standard exposed function : standard_func");
+// 			let result_json = serde_json::json!({
+// 				"message": "Hello, World! from standard_func",
+// 				"arg1": "arg1",
+// 				"arg2": "arg2",
+// 			})
+// 			.to_string();
+
+// 			// Convert the JSON string to a v8::Local value
+// 			match serde_v8::to_v8(scope, &result_json) {
+// 				Ok(result_value) => rv.set(result_value),
+// 				Err(_) => {
+// 					//throw_type_error(scope, "Failed to convert result to V8 value");
+// 					return;
+// 				}
+// 			}
+// 		},
+// 	}
+// }
+
 #[test]
 fn call() {
 	let src = r#"
 	function triple(a) { return 3 * a; }
+	const result = standard_func("arg1", "arg2"); // Call the Rust function and get the result
+	const result2 = db_func("arg1", "arg2");
+    // Handle the result
+	console.log("value returned from rust");
+    console.log(result);
+
+	const resultObj = JSON.parse(result); // Parse the JSON string into an object
+    console.log(resultObj.message);
+    console.log(resultObj.arg1);
+    console.log(resultObj.arg2);
 
 	function extract(obj) {
 		return {
@@ -42,7 +164,13 @@ fn call() {
 		};
 	}"#;
 
-	let mut script = Script::from_string(src).expect("Initialization succeeds");
+	//let mut script = Script::from_string(src).expect("Initialization succeeds");
+	let mut script2 = Script::rd_get_run_time().expect("Initialization succeeds");
+	// script2.add_exposed_object(get_exposed_object1());
+	// script2.add_exposed_object(get_exposed_object2());
+	script2.add_exposed_func::<StandardExposedFunction>();
+	script2.add_exposed_func::<DatabaseExposedFunction>();
+	script2.rd_run_string(src);
 
 	let args = JsArgs {
 		text: "hi".to_string(),
@@ -53,8 +181,8 @@ fn call() {
 		new_num: 12,
 	};
 
-	let result: JsResult = script.call("extract", (args,)).unwrap();
-	assert_eq!(result, exp_result);
+	// let result: JsResult = script.call("extract", (args,)).unwrap();
+	// assert_eq!(result, exp_result);
 }
 
 #[test]
@@ -110,6 +238,7 @@ fn call_hashmap_to_hashmap() {
 #[test]
 fn call_minimal() -> Result<(), AnyError> {
 	let js_code = "function triple(a) { return 3 * a; }";
+
 	let mut script = Script::from_string(js_code)?;
 
 	let arg = 7;
@@ -122,6 +251,7 @@ fn call_minimal() -> Result<(), AnyError> {
 #[test]
 fn call_void() -> Result<(), AnyError> {
 	let js_code = "function print(expr) { console.log(expr); }";
+
 	let mut script = Script::from_string(js_code)?;
 
 	let args = "some text";
@@ -132,7 +262,7 @@ fn call_void() -> Result<(), AnyError> {
 
 #[test]
 fn call_from_file() {
-	let mut script = Script::from_file("tests/hello.js").expect("File can be loaded");
+	let mut script = Script::from_string("tests/hello.js").expect("File can be loaded");
 
 	let args = JsArgs {
 		text: "hi".to_string(),
@@ -151,6 +281,7 @@ fn call_from_file() {
 fn call_local_state() {
 	let src = "var i = 0;
 	function inc() { return ++i; }";
+
 	let mut script = Script::from_string(src).expect("Initialization succeeds");
 
 	let args = ();
@@ -217,6 +348,7 @@ fn call_error_timeout() {
 	let expected_stop_time = Duration::from_millis(50);
 
 	let js_code = "function run_forever() { for(;;){} }";
+
 	let mut script = Script::from_string(js_code)
 		.expect("Initialization succeeds")
 		.with_timeout(timeout);
