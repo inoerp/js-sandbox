@@ -59,6 +59,13 @@ impl Script {
 		self.rd_run_script(all_code)
 	}
 
+	pub fn rd_run_file(&mut self, file: impl AsRef<Path>) -> Result<v8::Global<v8::Value>, JsError> {
+		match std::fs::read_to_string(file) {
+			Ok(js_code) => self.rd_run_script(js_code),
+			Err(e) => Err(JsError::Runtime(AnyError::from(e))),
+		}
+	}
+
 	/// Initialize a script by loading it from a .js file.
 	///
 	/// To load a file at compile time, you can use [`Self::from_string()`] in combination with the [`include_str!`] macro.
@@ -196,7 +203,8 @@ impl Script {
 	}
 
 	fn rd_run_script(&mut self, js_code: String) -> Result<v8::Global<v8::Value>, JsError> {
-		let value: v8::Global<v8::Value> = self.runtime
+		let value: v8::Global<v8::Value> = self
+			.runtime
 			.execute_script(Self::DEFAULT_FILENAME, js_code)?;
 
 		Ok(value)

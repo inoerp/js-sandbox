@@ -181,8 +181,8 @@ fn call() {
 		new_num: 12,
 	};
 
-	// let result: JsResult = script.call("extract", (args,)).unwrap();
-	// assert_eq!(result, exp_result);
+	let result: JsResult = script2.call("extract", (args,)).unwrap();
+	assert_eq!(result, exp_result);
 }
 
 #[test]
