@@ -43,6 +43,7 @@ impl ExposedFunction for DatabaseExposedFunction {
 		mut rv: deno_core::v8::ReturnValue,
 	) {
 		println!("In standard exposed function : db_func");
+		
 		let result_json = serde_json::json!({
 			"message": "Hello, World! from db_func",
 			"arg1": "arg1",
