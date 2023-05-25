@@ -178,3 +178,4 @@ mod js_error;
 mod script;
 mod util;
 pub mod exposed_func;
+pub mod api;
