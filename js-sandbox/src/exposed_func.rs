@@ -1,18 +1,18 @@
-use deno_core::v8;
+use deno_core::v8::{HandleScope, FunctionCallbackArguments, ReturnValue};
 
 pub struct ExposedObject {
 	pub name: String,
 	pub call_back:
-		fn(scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, rv: v8::ReturnValue),
+		fn(scope: &mut HandleScope, args: FunctionCallbackArguments, rv: ReturnValue),
 }
 
 impl ExposedObject {
 	pub fn new(
 		name: String,
 		call_back: fn(
-			scope: &mut v8::HandleScope,
-			args: v8::FunctionCallbackArguments,
-			rv: v8::ReturnValue,
+			scope: &mut HandleScope,
+			args: FunctionCallbackArguments,
+			rv: ReturnValue,
 		),
 	) -> Self {
 		Self { name, call_back }
@@ -20,19 +20,20 @@ impl ExposedObject {
 
 	pub fn call(
 		&self,
-		scope: &mut v8::HandleScope,
-		args: v8::FunctionCallbackArguments,
-		rv: v8::ReturnValue,
+		scope: &mut HandleScope,
+		args: FunctionCallbackArguments,
+		rv: ReturnValue,
 	) {
 		(self.call_back)(scope, args, rv);
 	}
 }
 
+
 pub trait ExposedFunction {
 	fn rust_func_for_js(
-		scope: &mut v8::HandleScope,
-		args: v8::FunctionCallbackArguments,
-		rv: v8::ReturnValue,
+		scope: &mut HandleScope,
+		args: FunctionCallbackArguments,
+		rv: ReturnValue,
 	);
 
 	fn name() -> String;
@@ -41,9 +42,9 @@ pub trait ExposedFunction {
 pub trait ExposedFunction2 {
 	fn rust_func_for_js(
 		self: &Self,
-		scope: &mut v8::HandleScope,
-		args: v8::FunctionCallbackArguments,
-		rv: v8::ReturnValue,
+		scope: &mut HandleScope,
+		args: FunctionCallbackArguments,
+		rv: ReturnValue,
 	);
 
 	fn name(self: &Self) -> String;
@@ -52,9 +53,9 @@ pub trait ExposedFunction2 {
 pub struct DefaultExposedFunction {}
 impl ExposedFunction for DefaultExposedFunction {
 	fn rust_func_for_js(
-		_scope: &mut deno_core::v8::HandleScope,
-		_args: deno_core::v8::FunctionCallbackArguments,
-		_rv: deno_core::v8::ReturnValue,
+		_scope: &mut deno_core::HandleScope,
+		_args: deno_core::FunctionCallbackArguments,
+		_rv: deno_core::ReturnValue,
 	) {
 	}
 
