@@ -1,4 +1,4 @@
-use deno_core::v8::{HandleScope, FunctionCallbackArguments, ReturnValue};
+pub use deno_core::v8::{HandleScope, FunctionCallbackArguments, ReturnValue};
 
 pub struct ExposedObject {
 	pub name: String,
