@@ -53,9 +53,9 @@ pub trait ExposedFunction2 {
 pub struct DefaultExposedFunction {}
 impl ExposedFunction for DefaultExposedFunction {
 	fn rust_func_for_js(
-		_scope: &mut deno_core::HandleScope,
-		_args: deno_core::FunctionCallbackArguments,
-		_rv: deno_core::ReturnValue,
+		_scope: &mut HandleScope,
+		_args: FunctionCallbackArguments,
+		_rv: ReturnValue,
 	) {
 	}
 
