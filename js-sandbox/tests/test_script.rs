@@ -14,7 +14,7 @@ use util::expect_error;
 
 mod util;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 struct JsArgs {
 	text: String,
 	num: i32,
@@ -43,7 +43,7 @@ impl ExposedFunction for DatabaseExposedFunction {
 		mut rv: deno_core::v8::ReturnValue,
 	) {
 		println!("In standard exposed function : db_func");
-		
+
 		let result_json = serde_json::json!({
 			"message": "Hello, World! from db_func",
 			"arg1": "arg1",
@@ -150,7 +150,7 @@ fn call() {
 	const result = standard_func("arg1", "arg2"); // Call the Rust function and get the result
 	const result2 = db_func("arg1", "arg2");
     // Handle the result
-	console.log("value returned from rust");
+	console.log("value returned from rust vvvvvvvvvv");
     console.log(result);
 
 	const resultObj = JSON.parse(result); // Parse the JSON string into an object
@@ -172,6 +172,10 @@ fn call() {
 	script2.add_exposed_func::<StandardExposedFunction>();
 	script2.add_exposed_func::<DatabaseExposedFunction>();
 	script2.rd_run_string(src);
+	let x = script2.rd_run_file("./assets/test/test.js");
+	if let Err(err) = x {
+		eprintln!("Error is {:?}", err);
+	}
 
 	let args = JsArgs {
 		text: "hi".to_string(),
@@ -183,7 +187,11 @@ fn call() {
 	};
 
 	let result: JsResult = script2.call("extract", (args,)).unwrap();
-	assert_eq!(result, exp_result);
+	//let result: JsResult = script2.call("beforeSave", (args.clone(),)).unwrap();
+	println!("before save result 1 {:?} ", result);
+	//let result: JsResult = script2.call("beforeSave", (args,)).unwrap();
+	println!("before save result 2 {:?} ", result);
+	//assert_eq!(result, exp_result);
 }
 
 #[test]

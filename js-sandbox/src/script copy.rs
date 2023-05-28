@@ -8,9 +8,7 @@ use std::{thread, time::Duration};
 use deno_core::{op, serde_v8, v8, Extension, JsRuntime, OpState, ZeroCopyBuf};
 use serde::de::DeserializeOwned;
 
-use crate::exposed_func::{
-	DefaultExposedFunction, ExposedFunction, ExposedObject, SqlSelectExposedFunction,
-};
+use crate::exposed_func::{ExposedFunction, ExposedObject, DefaultExposedFunction};
 use crate::{AnyError, CallArgs, JsError, JsValue};
 
 use deno_core::anyhow::Context;
@@ -57,10 +55,6 @@ impl Script {
 
 	pub fn rd_get_run_time() -> Result<Self, JsError> {
 		Self::rd_create_run_time()
-	}
-
-	pub fn rd_get_run_time2(file_path: &str) -> Result<Self, AnyError> {
-		Self::rd_create_run_time2(file_path)
 	}
 
 	pub fn rd_run_string(&mut self, js_code: &str) -> Result<v8::Global<v8::Value>, JsError> {
@@ -205,14 +199,14 @@ impl Script {
 			.ops(vec![(op_return::decl())])
 			.build();
 
-		let js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
+		let isolate = JsRuntime::new(deno_core::RuntimeOptions {
 			module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
 			extensions: vec![ext],
 			..Default::default()
 		});
 
 		Ok(Script {
-			runtime: js_runtime,
+			runtime: isolate,
 			last_rid: 0,
 			timeout: None,
 		})
@@ -246,6 +240,8 @@ impl Script {
 		};
 		runtime.block_on(future)
 	}
+
+
 
 	fn create_script(js_code: String) -> Result<Self, JsError> {
 		let ext = Extension::builder("script")
@@ -293,21 +289,21 @@ impl Script {
 			file_path,
 			&std::env::current_dir().context("Unable to get CWD")?,
 		)?;
-
+	
 		let mut js_runtime: JsRuntime = deno_core::JsRuntime::new(deno_core::RuntimeOptions {
 			module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
 			..Default::default()
 		});
-
+	
 		//js_runtime = Self::add_exposed_func2::<DefaultExposedFunction>(js_runtime);
-
+	
 		let mod_id = js_runtime.load_main_module(&main_module, None).await?;
 		let result = js_runtime.mod_evaluate(mod_id);
 		js_runtime.run_event_loop(false).await?;
 		result.await?;
 		Ok(())
 	}
-
+	
 	// pub fn add_exposed_func2<A>(runtime: JsRuntime) -> JsRuntime
 	// where
 	// 	A: ExposedFunction,
@@ -316,10 +312,10 @@ impl Script {
 	// 	let context = scope.get_current_context();
 	// 	let global = context.global(&mut scope);
 	// 	let scope = &mut v8::ContextScope::new(&mut scope, context);
-
+	
 	// 	let my_func_key = v8::String::new(scope, &A::name()).unwrap();
 	// 	println!("my_func_key is {:?}", my_func_key);
-
+	
 	// 	let runtime_clone = Rc::clone(runtime);
 	// 	let my_func_templ = v8::FunctionTemplate::new(
 	// 		scope,
@@ -333,6 +329,7 @@ impl Script {
 	// 	global.set(scope, my_func_key.into(), my_func_val.into());
 	// 	runtime_clone
 	// }
+	
 
 	pub fn add_exposed_func<A>(&mut self)
 	where

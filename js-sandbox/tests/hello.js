@@ -2,6 +2,7 @@
 
 function triple(a) {
     console.log("triple(" + a + ")");
+    
     return 3 * a;
 }
 
