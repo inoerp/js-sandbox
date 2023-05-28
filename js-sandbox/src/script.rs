@@ -59,9 +59,9 @@ impl Script {
 		Self::rd_create_run_time()
 	}
 
-	pub fn rd_get_run_time2(file_path: &str) -> Result<Self, AnyError> {
-		Self::rd_create_run_time2(file_path)
-	}
+	// pub fn rd_get_run_time2(file_path: &str) -> Result<Self, AnyError> {
+	// 	Self::rd_create_run_time2(file_path)
+	// }
 
 	pub fn rd_run_string(&mut self, js_code: &str) -> Result<v8::Global<v8::Value>, JsError> {
 		// console.log() is not available by default -- add the most basic version with single argument (and no warn/info/... variants)
