@@ -1,8 +1,13 @@
 use deno_core::v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
 
-pub struct ExposedObject {
+pub struct ExposedObject1 {
 	pub name: String,
 	pub call_back: fn(scope: &mut HandleScope, args: FunctionCallbackArguments, rv: ReturnValue),
+}
+
+pub struct ExposedObject {
+	pub name: String,
+	pub before_get: fn(scope: &mut HandleScope, args: FunctionCallbackArguments, rv: ReturnValue) -> (),
 }
 
 impl ExposedObject {
@@ -13,11 +18,11 @@ impl ExposedObject {
 	where
 		Self: Sized,
 	{
-		Self { name, call_back }
+		Self { name, before_get: call_back }
 	}
 
-	pub fn call(&self, scope: &mut HandleScope, args: FunctionCallbackArguments, rv: ReturnValue) {
-		(self.call_back)(scope, args, rv);
+	pub async fn call<'a>(scope: &'a mut HandleScope<'a>, args: FunctionCallbackArguments<'a>, rv: ReturnValue<'a>) ->() {
+		//(self.call_back)(scope, args, rv);
 	}
 }
 

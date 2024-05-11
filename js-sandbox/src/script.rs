@@ -5,11 +5,12 @@ use std::path::Path;
 use std::rc::Rc;
 use std::{thread, time::Duration};
 
-use deno_core::{op, serde_v8, v8, Extension, JsRuntime, OpState, ZeroCopyBuf};
+use deno_core::v8::{FunctionCallbackArguments, HandleScope, ReturnValue};
+use deno_core::{futures, op, v8, Extension, JsBuffer, JsRuntime, OpState};
 use serde::de::DeserializeOwned;
 
 use crate::exposed_func::{
-	DefaultExposedFunction, ExposedFunction, ExposedObject, SqlSelectExposedFunction,
+	DefaultExposedFunction, ExposedFunction, ExposedObject, SqlSelectExposedFunction, ExposedObject1,
 };
 use crate::{AnyError, CallArgs, JsError, JsValue};
 
@@ -182,7 +183,7 @@ impl Script {
 
 		// TODO use strongly typed JsError here (downcast)
 		self.runtime
-			.execute_script(Self::DEFAULT_FILENAME, js_code)?;
+			.execute_script(Self::DEFAULT_FILENAME, js_code.into())?;
 		deno_core::futures::executor::block_on(self.runtime.run_event_loop(false))?;
 
 		let state_rc = self.runtime.op_state();
@@ -221,7 +222,7 @@ impl Script {
 	fn rd_run_script(&mut self, js_code: String) -> Result<v8::Global<v8::Value>, JsError> {
 		let value: v8::Global<v8::Value> = self
 			.runtime
-			.execute_script(Self::DEFAULT_FILENAME, js_code)?;
+			.execute_script(Self::DEFAULT_FILENAME, js_code.into())?;
 
 		Ok(value)
 	}
@@ -259,7 +260,7 @@ impl Script {
 		});
 
 		// We cannot provide a dynamic filename because execute_script() requires a &'static str
-		isolate.execute_script(Self::DEFAULT_FILENAME, js_code)?;
+		isolate.execute_script(Self::DEFAULT_FILENAME, js_code.into())?;
 
 		Ok(Script {
 			runtime: isolate,
@@ -355,6 +356,55 @@ impl Script {
 		let my_func_val = my_func_templ.get_function(scope).unwrap();
 		global.set(scope, my_func_key.into(), my_func_val.into());
 	}
+
+	// pub async fn add_exposed_func2<A>(&mut self, b: ExposedObject)
+	// where
+	// 	A: ExposedFunction,
+	// {
+	// 	let mut scope = self.runtime.handle_scope();
+	// 	let context = scope.get_current_context();
+	// 	let global = context.global(&mut scope);
+	// 	let scope = &mut v8::ContextScope::new(&mut scope, context);
+
+	// 	let my_func_key = v8::String::new(scope, &b.name.as_str()).unwrap();
+	// 	println!("my_func_key is ${:?}", my_func_key);
+
+	// 	let my_func_templ = v8::FunctionTemplate::new(
+	// 		scope,
+	// 		|inner_scope: &mut v8::HandleScope,
+	// 		 inner_args: v8::FunctionCallbackArguments,
+	// 		 inner_rv: v8::ReturnValue| {             tokio::task::spawn_blocking(move || {
+    //             futures::executor::block_on(ExposedObject::call(inner_scope, inner_args, inner_rv))
+    //         }); },
+	// 	);
+	// 	let my_func_val = my_func_templ.get_function(scope).unwrap();
+	// 	global.set(scope, my_func_key.into(), my_func_val.into());
+	// }
+
+	// pub fn add_async_func(
+	// 	&mut self,
+	// 	fn_name: &str,
+	// 	callback: fn(&mut HandleScope, FunctionCallbackArguments, ReturnValue),
+	// ) {
+	// 	let mut scope = self.runtime.handle_scope();
+	// 	let context = scope.get_current_context();
+	// 	let global = context.global(&mut scope);
+	// 	let scope = &mut v8::ContextScope::new(&mut scope, context);
+
+	// 	let my_func_key = v8::String::new(scope, fn_name).unwrap();
+	// 	println!("my_func_key is ${:?}", my_func_key);
+
+	// 	let my_func_templ = v8::FunctionTemplate::new(
+	// 		scope,
+	// 		|scope: &mut HandleScope, args: FunctionCallbackArguments, rv: ReturnValue| {
+	// 			callback(scope, args, rv)
+	// 		},
+	// 	);
+	// 	let my_func_val = my_func_templ.get_function(scope).unwrap();
+	// 	global.set(scope, my_func_key.into(), my_func_val.into());
+	// }
+
+
 }
 
 #[derive(Debug)]
@@ -373,7 +423,7 @@ impl deno_core::Resource for ResultResource {
 fn op_return(
 	state: &mut OpState,
 	args: JsValue,
-	_buf: Option<ZeroCopyBuf>,
+	_buf: Option<JsBuffer>,
 ) -> Result<JsValue, deno_core::error::AnyError> {
 	let entry = ResultResource { json_value: args };
 	let resource_table = &mut state.resource_table;

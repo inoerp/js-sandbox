@@ -62,6 +62,30 @@ impl ExposedFunction for DatabaseExposedFunction {
 	}
 }
 
+fn rust_func_for_js(
+	scope: &mut deno_core::v8::HandleScope,
+	args: deno_core::v8::FunctionCallbackArguments,
+	mut rv: deno_core::v8::ReturnValue,
+) {
+	println!("In object  standard exposed function : db_func");
+
+	let result_json = serde_json::json!({
+		"message": "Hello, World! from db_func",
+		"arg1": "arg1",
+		"arg2": "arg2",
+	})
+	.to_string();
+
+	// Convert the JSON string to a v8::Local value
+	match serde_v8::to_v8(scope, &result_json) {
+		Ok(result_value) => rv.set(result_value),
+		Err(_) => {
+			//throw_type_error(scope, "Failed to convert result to V8 value");
+			return;
+		}
+	}
+}
+
 pub struct StandardExposedFunction {}
 impl ExposedFunction for StandardExposedFunction {
 	fn name() -> String {
@@ -167,10 +191,13 @@ fn call() {
 
 	//let mut script = Script::from_string(src).expect("Initialization succeeds");
 	let mut script2 = Script::rd_get_run_time().expect("Initialization succeeds");
+
+	let exp_obj = ExposedObject::new("standard_func".to_string(), rust_func_for_js);
 	// script2.add_exposed_object(get_exposed_object1());
 	// script2.add_exposed_object(get_exposed_object2());
-	script2.add_exposed_func::<StandardExposedFunction>();
-	script2.add_exposed_func::<DatabaseExposedFunction>();
+	//script2.add_exposed_func2::<StandardExposedFunction>(exp_obj);
+	 script2.add_exposed_func::<StandardExposedFunction>();
+	 script2.add_exposed_func::<DatabaseExposedFunction>();
 	script2.rd_run_string(src);
 	let x = script2.rd_run_file("./assets/test/test.js");
 	if let Err(err) = x {

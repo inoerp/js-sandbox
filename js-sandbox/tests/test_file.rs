@@ -4,13 +4,14 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::rc::Rc;
 use std::thread;
+use js_sandbox::exposed_func::{DefaultExposedFunction, ExposedFunction, ExposedObject};
 
 use deno_core::anyhow::Context;
 use deno_core::anyhow::Error;
 use deno_core::v8::HandleScope;
 use deno_core::FsModuleLoader;
 use deno_core::RuntimeOptions;
-use deno_core::{op, Extension, JsRuntime, OpState, ZeroCopyBuf};
+use deno_core::{op, Extension, JsRuntime, OpState};
 use js_sandbox::exposed_func::SqlSelectExposedFunction;
 use serde::de::DeserializeOwned;
 
@@ -18,7 +19,6 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use deno_core::{serde_v8, v8};
-use js_sandbox::exposed_func::{DefaultExposedFunction, ExposedFunction, ExposedObject};
 use serde::{Deserialize, Serialize};
 
 use js_sandbox::{AnyError, JsError, Script};
@@ -61,6 +61,7 @@ fn call_from_file() {
 	"#;
 	//let mut script = Script::from_file("./js/hello.js").expect("File can not be loaded");
 	let mut script2 = Script::rd_get_run_time().expect("Initialization succeeds");
+	//script2.add_exposed_func::<DefaultExposedFunction>();
 	script2
 		.rd_load_module("./assets/test/test.js")
 		.expect("Unable to load module");
@@ -104,7 +105,7 @@ fn exp_obj_test() {
 		.build()
 		.unwrap();
 
-	let exp_obj = ExposedObject::new("default_func".to_string(), rust_func_for_js2);
+	//let exp_obj = ExposedObject::new("default_func".to_string(), rust_func_for_js2);
 
 	// if let Err(error) = runtime.block_on(dynamic::rd_run_js3("./assets/test/test.js", exp_obj)) {
 	// 	eprintln!("error: {}", error);
